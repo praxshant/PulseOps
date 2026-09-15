@@ -185,6 +185,10 @@ def run_training(
             }
             tracker.log(f"{split_name}_evaluation_completed", metrics=metrics[split_name])
 
+        from models.quality_gate import passes_quality_gate
+        gate_passed, gate_reason = passes_quality_gate(metrics, split_name="validation")
+        tracker.log("quality_gate_evaluated", passed=gate_passed, reason=gate_reason)
+
         model_path = run_dir / "model.joblib"
         joblib.dump(model, model_path)
         tracker.log("artifacts_saved", model_artifact=str(model_path), prediction_artifacts=len(splits))
@@ -202,6 +206,7 @@ def run_training(
             "environment": _environment_metadata(),
             "rows_seen": len(train),
             "metrics": metrics,
+            "quality_gate": {"passed": gate_passed, "reason": gate_reason},
             "model_artifact": str(model_path),
             "events_artifact": str(tracker.events_path),
         }
@@ -237,6 +242,8 @@ def run_training(
                 "schema_hash": result["dataset"]["schema_hash"],
                 "experiment_name": config.experiment_name,
                 "environment": settings.environment,
+                "quality_gate_passed": str(gate_passed),
+                "quality_gate_reason": gate_reason,
             })
             
             mlflow.log_artifacts(str(run_dir))
