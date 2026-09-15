@@ -156,7 +156,12 @@ def run_training(
             params = model.get_params() if hasattr(model, "get_params") else {}
             config = dataclasses.replace(config, hyperparameters=params)
 
-        tracker.log("model_initialized", model_type=config.model_type, random_seed=config.random_seed, hyperparameters=config.hyperparameters)
+        tracker.log(
+            "model_initialized",
+            model_type=config.model_type,
+            random_seed=config.random_seed,
+            hyperparameters=config.hyperparameters,
+        )
         
         train = splits["train"].dropna(subset=["target_next_day"])
         training_started_at = datetime.now(timezone.utc)
@@ -171,7 +176,9 @@ def run_training(
         for split_name, split_frame in splits.items():
             tracker.log(f"{split_name}_evaluation_started", rows=len(split_frame))
             usable = split_frame.dropna(subset=["target_next_day"])
-            candidate_prediction = pd.Series(model.predict(usable[feature_columns]), index=usable.index)
+            candidate_prediction = pd.Series(
+                model.predict(usable[feature_columns]), index=usable.index
+            )
             predictions = usable[["Org Code", "date", "target_next_day"]].assign(
                 prediction=candidate_prediction.to_numpy(),
                 previous_day=previous_day_baseline(usable).to_numpy(),
@@ -191,7 +198,11 @@ def run_training(
 
         model_path = run_dir / "model.joblib"
         joblib.dump(model, model_path)
-        tracker.log("artifacts_saved", model_artifact=str(model_path), prediction_artifacts=len(splits))
+        tracker.log(
+            "artifacts_saved",
+            model_artifact=str(model_path),
+            prediction_artifacts=len(splits),
+        )
         finished_at = datetime.now(timezone.utc)
         result = {
             "run_id": run_id,
@@ -216,6 +227,7 @@ def run_training(
         )
         
         import mlflow
+
         from config import settings
         
         mlflow.set_tracking_uri(settings.mlflow_tracking_uri)

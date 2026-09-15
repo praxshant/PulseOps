@@ -2,6 +2,7 @@
 
 from typing import Any
 
+
 def passes_quality_gate(
     metrics: dict[str, Any],
     split_name: str = "validation",
@@ -29,7 +30,11 @@ def passes_quality_gate(
         if baseline in split_metrics:
             baseline_mae = split_metrics[baseline]["mae"]
             if candidate_mae >= baseline_mae:
-                return False, f"Candidate MAE ({candidate_mae:.2f}) does not beat {baseline} ({baseline_mae:.2f})."
+                msg = (
+                    f"Candidate MAE ({candidate_mae:.2f}) does not beat "
+                    f"{baseline} ({baseline_mae:.2f})."
+                )
+                return False, msg
                 
     # Absolute quality check
     if candidate_wape > max_wape:
