@@ -26,6 +26,7 @@ from models.baselines import previous_day_baseline, previous_weekday_baseline
 from models.metrics import regression_metrics
 from models.run_config import RunConfig
 from models.split import TemporalSplitConfig, chronological_split
+from models.tracking import RunTracker
 
 
 FEATURE_SETS: dict[str, list[str]] = {
@@ -98,23 +99,33 @@ def run_training(
     """Train a candidate model and record complete local lineage metadata."""
     config = run_config or RunConfig()
     split = split_config or TemporalSplitConfig()
+    tracker = RunTracker(artifact_root)
+    tracker.log("dataset_load_started", dataset_path=str(dataset_path))
     frame = load_forecasting_dataset(dataset_path)
+    tracker.log("dataset_loaded", rows=len(frame), columns=len(frame.columns))
+    tracker.log("dataset_validated", date_min=str(frame["date"].min().date()), date_max=str(frame["date"].max().date()))
     splits = chronological_split(frame, split)
-    started_at = datetime.now(timezone.utc)
-    run_id = started_at.strftime("%Y%m%dT%H%M%SZ")
-    run_dir = artifact_root / run_id
-    run_dir.mkdir(parents=True, exist_ok=True)
+    tracker.log("split_created", split=split.as_dict(), rows={name: len(value) for name, value in splits.items()})
+    started_at = tracker.started_at
+    run_id = tracker.run_id
+    run_dir = tracker.run_dir
     feature_columns = FEATURE_SETS[config.feature_set]
     missing_features = set(feature_columns).difference(frame.columns)
     if missing_features:
         raise ValueError(f"Missing selected features: {sorted(missing_features)}")
+    tracker.log("features_selected", feature_set=config.feature_set, feature_count=len(feature_columns), features=feature_columns)
 
+    tracker.log("model_initialized", model_type=config.model_type, random_seed=config.random_seed)
     model = _model(config.model_type, config.random_seed)
     train = splits["train"].dropna(subset=["target_next_day"])
+    training_started_at = datetime.now(timezone.utc)
+    tracker.log("training_started", rows=len(train))
     model.fit(train[feature_columns], train["target_next_day"])
+    tracker.log("training_completed", duration_seconds=(datetime.now(timezone.utc) - training_started_at).total_seconds())
 
     metrics: dict[str, dict[str, dict[str, float]]] = {}
     for split_name, split_frame in splits.items():
+        tracker.log(f"{split_name}_evaluation_started", rows=len(split_frame))
         usable = split_frame.dropna(subset=["target_next_day"])
         candidate_prediction = pd.Series(model.predict(usable[feature_columns]), index=usable.index)
         predictions = usable[["Org Code", "date", "target_next_day"]].assign(
@@ -128,9 +139,11 @@ def run_training(
             "previous_day": _score_split(usable, predictions["previous_day"]),
             "previous_weekday": _score_split(usable, predictions["previous_weekday"]),
         }
+        tracker.log(f"{split_name}_evaluation_completed", metrics=metrics[split_name])
 
     model_path = run_dir / "model.joblib"
     joblib.dump(model, model_path)
+    tracker.log("artifacts_saved", model_artifact=str(model_path), prediction_artifacts=len(splits))
     finished_at = datetime.now(timezone.utc)
     result = {
         "run_id": run_id,
@@ -146,8 +159,10 @@ def run_training(
         "rows_seen": len(train),
         "metrics": metrics,
         "model_artifact": str(model_path),
+        "events_artifact": str(tracker.events_path),
     }
     (run_dir / "run.json").write_text(json.dumps(result, indent=2, default=str) + "\n", encoding="utf-8")
+    tracker.finish(duration_seconds=result["duration_seconds"], metrics=metrics)
     return result
 
 

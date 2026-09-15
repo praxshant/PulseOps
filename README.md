@@ -85,6 +85,40 @@ readiness. The run used dataset SHA-256
 hash `e904102d7b2c6a96c53ee152d12f2baf78b3152aa5662895fed5a5f79a88ebc9`, and
 Git commit `ab515a3202cda75efbd168b4ac8454c684bfb7fb`.
 
+## Why the score improves
+
+On the August test split, the candidate reduces error as follows:
+
+| Comparison | MAE improvement | RMSE improvement | WAPE improvement |
+|---|---:|---:|---:|
+| Versus previous-day baseline | 48.01% | 45.86% | 48.01% |
+| Versus previous-weekday baseline | 50.06% | 49.06% | 50.28% |
+
+This improvement is evidence that the engineered discharge history is useful:
+calendar features represent weekday effects, exact calendar lags preserve real
+seven/fourteen/twenty-eight-day history, and shifted rolling windows summarize
+recent capacity flow without using the prediction day's value. The model is
+not being credited for synthetic daily A&E values or forward-filled bed data.
+
+The next solution for improving confidence is controlled experimentation, not
+blind model complexity: compare `calendar`, `calendar_lags`,
+`calendar_lags_rolling`, and `all_context` on the same temporal split; keep
+validation for selection; report August only once; and inspect per-organisation
+MAE/WAPE before promotion. MLflow will be added next so those experiments can
+be compared with the same dataset hash, feature schema, split, and environment.
+
+## Structured training lineage
+
+Each training run now receives a UUID and writes an append-only
+`artifacts/runs/<run_id>/events.jsonl` stream. Events include dataset loading
+and validation, split creation, feature selection, model initialization,
+training start/completion, validation/test evaluation, artifact saving, and run
+completion. Every event has the same run ID and an ISO-8601 UTC timestamp.
+
+The latest local lineage run is `5d4b8ddbcbe3419caa739385a5f6695c`. Its test
+evaluation completed in the event stream with the metrics above. Local run
+artifacts remain ignored by Git.
+
 Before using real NHS or operational data, record dataset provenance, licensing, schema, and retrieval date in `data/README.md`. Keep raw data out of source control.
 
 ## Engineering decisions
