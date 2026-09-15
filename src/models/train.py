@@ -259,6 +259,14 @@ def run_training(
             })
             
             mlflow.log_artifacts(str(run_dir))
+            
+            if gate_passed:
+                import mlflow.sklearn
+                mlflow.sklearn.log_model(
+                    sk_model=model,
+                    artifact_path="model",
+                    registered_model_name=settings.model_name,
+                )
 
         tracker.finish(duration_seconds=result["duration_seconds"], metrics=metrics)
         return result
