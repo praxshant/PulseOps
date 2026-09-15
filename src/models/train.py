@@ -28,7 +28,6 @@ from models.run_config import RunConfig
 from models.split import TemporalSplitConfig, chronological_split
 from models.tracking import RunTracker
 
-
 FEATURE_SETS: dict[str, list[str]] = {
     "calendar": ["day_of_week", "is_weekend"],
     "calendar_lags": [
@@ -103,9 +102,17 @@ def run_training(
     tracker.log("dataset_load_started", dataset_path=str(dataset_path))
     frame = load_forecasting_dataset(dataset_path)
     tracker.log("dataset_loaded", rows=len(frame), columns=len(frame.columns))
-    tracker.log("dataset_validated", date_min=str(frame["date"].min().date()), date_max=str(frame["date"].max().date()))
+    tracker.log(
+        "dataset_validated",
+        date_min=str(frame["date"].min().date()),
+        date_max=str(frame["date"].max().date()),
+    )
     splits = chronological_split(frame, split)
-    tracker.log("split_created", split=split.as_dict(), rows={name: len(value) for name, value in splits.items()})
+    tracker.log(
+        "split_created",
+        split=split.as_dict(),
+        rows={name: len(value) for name, value in splits.items()},
+    )
     started_at = tracker.started_at
     run_id = tracker.run_id
     run_dir = tracker.run_dir
@@ -113,7 +120,12 @@ def run_training(
     missing_features = set(feature_columns).difference(frame.columns)
     if missing_features:
         raise ValueError(f"Missing selected features: {sorted(missing_features)}")
-    tracker.log("features_selected", feature_set=config.feature_set, feature_count=len(feature_columns), features=feature_columns)
+    tracker.log(
+        "features_selected",
+        feature_set=config.feature_set,
+        feature_count=len(feature_columns),
+        features=feature_columns,
+    )
 
     tracker.log("model_initialized", model_type=config.model_type, random_seed=config.random_seed)
     model = _model(config.model_type, config.random_seed)
@@ -121,7 +133,10 @@ def run_training(
     training_started_at = datetime.now(timezone.utc)
     tracker.log("training_started", rows=len(train))
     model.fit(train[feature_columns], train["target_next_day"])
-    tracker.log("training_completed", duration_seconds=(datetime.now(timezone.utc) - training_started_at).total_seconds())
+    tracker.log(
+        "training_completed",
+        duration_seconds=(datetime.now(timezone.utc) - training_started_at).total_seconds(),
+    )
 
     metrics: dict[str, dict[str, dict[str, float]]] = {}
     for split_name, split_frame in splits.items():
@@ -161,16 +176,33 @@ def run_training(
         "model_artifact": str(model_path),
         "events_artifact": str(tracker.events_path),
     }
-    (run_dir / "run.json").write_text(json.dumps(result, indent=2, default=str) + "\n", encoding="utf-8")
+    (run_dir / "run.json").write_text(
+        json.dumps(result, indent=2, default=str) + "\n",
+        encoding="utf-8",
+    )
     tracker.finish(duration_seconds=result["duration_seconds"], metrics=metrics)
     return result
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Train and evaluate PulseOps discharge forecasting")
-    parser.add_argument("--dataset", type=Path, default=Path("data/processed/forecasting_dataset.parquet"))
-    parser.add_argument("--model-type", choices=["ridge", "hist_gradient_boosting"], default="hist_gradient_boosting")
-    parser.add_argument("--feature-set", choices=sorted(FEATURE_SETS), default="calendar_lags_rolling")
+    parser = argparse.ArgumentParser(
+        description="Train and evaluate PulseOps discharge forecasting"
+    )
+    parser.add_argument(
+        "--dataset",
+        type=Path,
+        default=Path("data/processed/forecasting_dataset.parquet"),
+    )
+    parser.add_argument(
+        "--model-type",
+        choices=["ridge", "hist_gradient_boosting"],
+        default="hist_gradient_boosting",
+    )
+    parser.add_argument(
+        "--feature-set",
+        choices=sorted(FEATURE_SETS),
+        default="calendar_lags_rolling",
+    )
     args = parser.parse_args()
     result = run_training(
         args.dataset,

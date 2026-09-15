@@ -8,7 +8,10 @@ def test_tracker_writes_ordered_timestamped_events(tmp_path) -> None:
     tracker.log("dataset_loaded", rows=10)
     tracker.finish(status="success")
 
-    records = [json.loads(line) for line in tracker.events_path.read_text(encoding="utf-8").splitlines()]
+    records = [
+        json.loads(line)
+        for line in tracker.events_path.read_text(encoding="utf-8").splitlines()
+    ]
     assert [record["event"] for record in records] == [
         "run_created",
         "dataset_loaded",

@@ -78,8 +78,12 @@ def test_future_value_does_not_change_features_at_prediction_date() -> None:
     )
 
     feature_columns = ["lag_1_discharge", "lag_7_discharge", "rolling_7d_discharge"]
-    original_row = original.loc[original["date"].eq(pd.Timestamp("2026-01-02")), feature_columns].iloc[0]
-    changed_row = changed_future.loc[changed_future["date"].eq(pd.Timestamp("2026-01-02")), feature_columns].iloc[0]
+    original_row = original.loc[
+        original["date"].eq(pd.Timestamp("2026-01-02")), feature_columns
+    ].iloc[0]
+    changed_row = changed_future.loc[
+        changed_future["date"].eq(pd.Timestamp("2026-01-02")), feature_columns
+    ].iloc[0]
     pd.testing.assert_series_equal(original_row, changed_row)
 
 

@@ -43,7 +43,12 @@ def chronological_split(
     splits: dict[str, pd.DataFrame] = {}
     for name, (start, end) in boundaries.items():
         mask = dates.between(pd.Timestamp(start), pd.Timestamp(end), inclusive="both")
-        splits[name] = frame.loc[mask].copy().sort_values(["Org Code", "date"]).reset_index(drop=True)
+        splits[name] = (
+            frame.loc[mask]
+            .copy()
+            .sort_values(["Org Code", "date"])
+            .reset_index(drop=True)
+        )
     if any(split.empty for split in splits.values()):
         raise ValueError("Temporal split produced an empty partition")
     if set(splits["train"]["date"]).intersection(splits["validation"]["date"]):

@@ -2,8 +2,8 @@
 
 from fastapi import FastAPI
 from fastapi.responses import Response
-from pydantic import BaseModel, Field
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from pydantic import BaseModel, Field
 
 app = FastAPI(title="PulseOps API", version="0.1.0")
 

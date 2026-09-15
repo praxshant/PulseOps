@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pandas as pd
 
-
 LAG_DAYS = (1, 7, 14, 28)
 ROLLING_WINDOWS = (7, 14, 28)
 
@@ -90,7 +89,12 @@ def build_forecasting_dataset(
     target["is_weekend"] = target["day_of_week"].isin([5, 6]).astype(int)
     target["month"] = target["date"].dt.to_period("M").dt.to_timestamp()
     result = _calendar_lags(target)
-    result = result.merge(_calendar_rollings(target), on=["Org Code", "date"], how="left", validate="one_to_one")
+    result = result.merge(
+        _calendar_rollings(target),
+        on=["Org Code", "date"],
+        how="left",
+        validate="one_to_one",
+    )
 
     bed_columns = [
         "Org Code",

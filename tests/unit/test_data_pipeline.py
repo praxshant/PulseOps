@@ -1,5 +1,4 @@
 import pandas as pd
-import pytest
 
 from data.normalize import normalize_discharges
 from data.validate import validate_normalized_discharges

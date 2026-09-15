@@ -12,7 +12,6 @@ import pandas as pd
 
 from data.schemas import DAILY_METRIC_TYPE, DISCHARGE_METRIC
 
-
 ENCODINGS = ("utf-8", "utf-8-sig", "cp1252")
 
 
@@ -133,12 +132,24 @@ def normalize_ae(frame: pd.DataFrame) -> pd.DataFrame:
     ]
     for column in measure_columns:
         normalized[column] = pd.to_numeric(normalized[column], errors="coerce")
-    normalized["total_attendances"] = normalized.filter(regex=r"^A&E attendances").sum(axis=1, min_count=1)
+    normalized["total_attendances"] = normalized.filter(
+        regex=r"^A&E attendances"
+    ).sum(axis=1, min_count=1)
     normalized["total_emergency_admissions"] = normalized.filter(
         regex=r"^Emergency admissions|^Other emergency admissions"
     ).sum(axis=1, min_count=1)
-    normalized["total_over_4_hours"] = normalized.filter(regex=r"^Attendances over 4hrs").sum(axis=1, min_count=1)
-    return normalized[["Org Code", "month", "total_attendances", "total_emergency_admissions", "total_over_4_hours"]]
+    normalized["total_over_4_hours"] = normalized.filter(
+        regex=r"^Attendances over 4hrs"
+    ).sum(axis=1, min_count=1)
+    return normalized[
+        [
+            "Org Code",
+            "month",
+            "total_attendances",
+            "total_emergency_admissions",
+            "total_over_4_hours",
+        ]
+    ]
 
 
 def write_interim_tables(raw_root: Path, interim_root: Path) -> dict[str, Path]:
@@ -149,7 +160,9 @@ def write_interim_tables(raw_root: Path, interim_root: Path) -> dict[str, Path]:
         "beds": interim_root / "beds_normalized.parquet",
         "ae": interim_root / "ae_normalized.parquet",
     }
-    normalize_discharges(load_csv_directory(raw_root / "discharges")).to_parquet(outputs["discharges"], index=False)
+    normalize_discharges(load_csv_directory(raw_root / "discharges")).to_parquet(
+        outputs["discharges"], index=False
+    )
     normalize_beds(load_csv_directory(raw_root / "beds")).to_parquet(outputs["beds"], index=False)
     normalize_ae(load_csv_directory(raw_root / "admissions")).to_parquet(outputs["ae"], index=False)
     return outputs
