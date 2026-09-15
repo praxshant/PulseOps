@@ -64,7 +64,7 @@ same-weekday discharge counts. The default candidate is
 `ExtraTreesRegressor` with the `all_context` feature set; model metrics are
 published only after a training run has been completed.
 
-## First training result
+## Current Champion Benchmark
 
 Run `654a6852cada467bb3c7fa56e65b4512` trained `ExtraTreesRegressor`
 with the `all_context` feature set and random seed `42`.

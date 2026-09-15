@@ -15,6 +15,7 @@ class RunTracker:
     def __init__(self, artifact_root: Path) -> None:
         self.run_id = uuid4().hex
         self.started_at = datetime.now(timezone.utc)
+        self.sequence = 0
         self.run_dir = artifact_root / self.run_id
         self.run_dir.mkdir(parents=True, exist_ok=False)
         self.events_path = self.run_dir / "events.jsonl"
@@ -22,7 +23,9 @@ class RunTracker:
 
     def log(self, event: str, **details: Any) -> dict[str, Any]:
         """Append one structured event and return the serialized record."""
+        self.sequence += 1
         record = {
+            "sequence": self.sequence,
             "run_id": self.run_id,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "event": event,
@@ -35,3 +38,7 @@ class RunTracker:
     def finish(self, **details: Any) -> dict[str, Any]:
         """Record the terminal run event."""
         return self.log("run_completed", **details)
+
+    def fail(self, error_message: str, **details: Any) -> dict[str, Any]:
+        """Record a terminal failure event."""
+        return self.log("run_failed", error_message=error_message, **details)
