@@ -201,7 +201,7 @@ def main() -> int:
     parser.add_argument(
         "--feature-set",
         choices=sorted(FEATURE_SETS),
-        default="calendar_lags_rolling",
+        default="all_context",
     )
     args = parser.parse_args()
     result = run_training(

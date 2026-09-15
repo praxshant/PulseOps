@@ -60,25 +60,28 @@ the ignored `artifacts/runs/` directory.
 
 The current temporal evaluation uses April-June for training, July for
 validation, and August for test. Baselines are previous-day and previous-week
-same-weekday discharge counts. The first candidate model is
-`HistGradientBoostingRegressor`; model metrics are published only after a
-training run has been completed.
+same-weekday discharge counts. The default candidate is
+`HistGradientBoostingRegressor` with the `all_context` feature set; model
+metrics are published only after a training run has been completed.
 
 ## First training result
 
-Run `20260915T141039Z` trained `HistGradientBoostingRegressor` with the
-`calendar_lags_rolling` feature set and random seed `42`.
+Run `787ef6b06ce645c0b35d0515315a9a47` trained `HistGradientBoostingRegressor`
+with the `all_context` feature set and random seed `42`.
 
 | Split | Model | MAE | RMSE | WAPE | Rows |
 |---|---|---:|---:|---:|---:|
-| Validation | Candidate | 10.37 | 14.76 | 12.92% | 3,627 |
+| Validation | Candidate | 10.28 | 14.57 | 12.81% | 3,627 |
 | Validation | Previous day | 20.68 | 29.09 | 25.75% | 3,627 |
 | Validation | Previous weekday | 22.16 | 30.71 | 27.65% | 2,808 |
-| Test | Candidate | 10.70 | 15.78 | 13.97% | 3,510 |
+| Test | Candidate | 10.59 | 15.48 | 13.83% | 3,510 |
 | Test | Previous day | 20.58 | 29.15 | 26.87% | 3,510 |
 | Test | Previous weekday | 21.43 | 30.98 | 28.09% | 2,691 |
 
-The candidate beats both naive baselines on the held-out test split. This is a
+The candidate beats both naive baselines on the held-out test split. Compared
+with the earlier lag-and-rolling-only candidate, adding controlled A&E and
+bed-context features improves test MAE by 1.03%, RMSE by 1.89%, and WAPE by
+1.03%. This is a
 baseline engineering result, not a claim of annual seasonality or production
 readiness. The run used dataset SHA-256
 `9eed502b65038be2eda91527714fa6d39191b6f859c285e9c8058b9ca1acaa00`, schema
@@ -91,8 +94,8 @@ On the August test split, the candidate reduces error as follows:
 
 | Comparison | MAE improvement | RMSE improvement | WAPE improvement |
 |---|---:|---:|---:|
-| Versus previous-day baseline | 48.01% | 45.86% | 48.01% |
-| Versus previous-weekday baseline | 50.06% | 49.06% | 50.28% |
+| Versus previous-day baseline | 48.54% | 46.88% | 48.53% |
+| Versus previous-weekday baseline | 50.59% | 50.02% | 50.78% |
 
 This improvement is evidence that the engineered discharge history is useful:
 calendar features represent weekday effects, exact calendar lags preserve real
@@ -100,12 +103,15 @@ seven/fourteen/twenty-eight-day history, and shifted rolling windows summarize
 recent capacity flow without using the prediction day's value. The model is
 not being credited for synthetic daily A&E values or forward-filled bed data.
 
-The next solution for improving confidence is controlled experimentation, not
-blind model complexity: compare `calendar`, `calendar_lags`,
-`calendar_lags_rolling`, and `all_context` on the same temporal split; keep
-validation for selection; report August only once; and inspect per-organisation
-MAE/WAPE before promotion. MLflow will be added next so those experiments can
-be compared with the same dataset hash, feature schema, split, and environment.
+The experiment matrix showed that `calendar_lags_rolling` reached test MAE
+10.70, while `all_context` reached 10.59. Ridge was materially weaker, with
+test MAE 16.75 using lag-and-rolling features. A bounded learning-rate check
+selected 0.08 on July validation but produced a worse August test score
+(10.62), so the existing 0.05 setting was retained instead of tuning against
+the test month. This is the score-improvement solution: add context only after
+measuring it, select on validation, and keep August untouched for final
+reporting. MLflow is the next step for storing this experiment matrix with the
+same dataset hash, feature schema, split, and environment.
 
 ## Structured training lineage
 
@@ -115,9 +121,9 @@ and validation, split creation, feature selection, model initialization,
 training start/completion, validation/test evaluation, artifact saving, and run
 completion. Every event has the same run ID and an ISO-8601 UTC timestamp.
 
-The latest local lineage run is `5d4b8ddbcbe3419caa739385a5f6695c`. Its test
-evaluation completed in the event stream with the metrics above. Local run
-artifacts remain ignored by Git.
+The latest experiment lineage run is `787ef6b06ce645c0b35d0515315a9a47`. Its
+test evaluation completed in the event stream with the metrics above. Local
+run artifacts remain ignored by Git.
 
 Before using real NHS or operational data, record dataset provenance, licensing, schema, and retrieval date in `data/README.md`. Keep raw data out of source control.
 
