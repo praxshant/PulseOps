@@ -64,6 +64,27 @@ same-weekday discharge counts. The first candidate model is
 `HistGradientBoostingRegressor`; model metrics are published only after a
 training run has been completed.
 
+## First training result
+
+Run `20260915T141039Z` trained `HistGradientBoostingRegressor` with the
+`calendar_lags_rolling` feature set and random seed `42`.
+
+| Split | Model | MAE | RMSE | WAPE | Rows |
+|---|---|---:|---:|---:|---:|
+| Validation | Candidate | 10.37 | 14.76 | 12.92% | 3,627 |
+| Validation | Previous day | 20.68 | 29.09 | 25.75% | 3,627 |
+| Validation | Previous weekday | 22.16 | 30.71 | 27.65% | 2,808 |
+| Test | Candidate | 10.70 | 15.78 | 13.97% | 3,510 |
+| Test | Previous day | 20.58 | 29.15 | 26.87% | 3,510 |
+| Test | Previous weekday | 21.43 | 30.98 | 28.09% | 2,691 |
+
+The candidate beats both naive baselines on the held-out test split. This is a
+baseline engineering result, not a claim of annual seasonality or production
+readiness. The run used dataset SHA-256
+`9eed502b65038be2eda91527714fa6d39191b6f859c285e9c8058b9ca1acaa00`, schema
+hash `e904102d7b2c6a96c53ee152d12f2baf78b3152aa5662895fed5a5f79a88ebc9`, and
+Git commit `ab515a3202cda75efbd168b4ac8454c684bfb7fb`.
+
 Before using real NHS or operational data, record dataset provenance, licensing, schema, and retrieval date in `data/README.md`. Keep raw data out of source control.
 
 ## Engineering decisions
