@@ -209,6 +209,38 @@ def run_training(
             json.dumps(result, indent=2, default=str) + "\n",
             encoding="utf-8",
         )
+        
+        import mlflow
+        from config import settings
+        
+        mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
+        mlflow.set_experiment(config.experiment_name)
+        
+        with mlflow.start_run(run_name=run_id):
+            mlflow.log_params({
+                "model_type": config.model_type,
+                "feature_set": config.feature_set,
+                "random_seed": config.random_seed,
+            })
+            if config.hyperparameters:
+                mlflow.log_params(config.hyperparameters)
+            mlflow.log_params({"split_" + k: v for k, v in split.as_dict().items()})
+            
+            for split_name, split_metrics in metrics.items():
+                if "candidate" in split_metrics:
+                    for metric_name, value in split_metrics["candidate"].items():
+                        mlflow.log_metric(f"{split_name}_{metric_name}", value)
+            
+            mlflow.set_tags({
+                "git_commit": result["code"]["git_commit"],
+                "dataset_hash": result["dataset"]["dataset_hash"],
+                "schema_hash": result["dataset"]["schema_hash"],
+                "experiment_name": config.experiment_name,
+                "environment": settings.environment,
+            })
+            
+            mlflow.log_artifacts(str(run_dir))
+
         tracker.finish(duration_seconds=result["duration_seconds"], metrics=metrics)
         return result
     except Exception as e:
