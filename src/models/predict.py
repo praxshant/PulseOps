@@ -1,4 +1,4 @@
-"""Load a model and produce predictions."""
+"""Load persisted PulseOps models and generate predictions."""
 
 from pathlib import Path
 

@@ -19,7 +19,7 @@ FastAPI -> Docker -> cloud -> monitoring -> drift detection -> retraining
 
 ## Layout
 
-- `src/data`: ingestion, validation, normalization, and preprocessing.
+- `src/data`: ingestion, validation, normalization, dataset contracts, and splits.
 - `src/features`: deterministic feature engineering.
 - `src/models`: training, evaluation, and prediction.
 - `src/api`: FastAPI serving boundary.
@@ -45,12 +45,24 @@ The API is available at `http://localhost:8000`; interactive docs are at `/docs`
 ```bash
 $env:PYTHONPATH="src"
 python -m data.validate
+python -m features.build
+python -m models.train
 ```
 
 The current data foundation reads the immutable NHS files in `data/raw/` and
 writes reproducible normalized tables to `data/interim/`. Raw and derived NHS
 datasets are intentionally excluded from source control and can be regenerated
-from the documented acquisition and normalization workflow.
+from the documented acquisition, normalization, and feature-building workflow.
+The feature build writes `data/processed/forecasting_dataset.parquet` locally.
+Training records split boundaries, feature sets, dataset and schema hashes, Git
+metadata, environment versions, predictions, and MAE/RMSE/WAPE metrics under
+the ignored `artifacts/runs/` directory.
+
+The current temporal evaluation uses April-June for training, July for
+validation, and August for test. Baselines are previous-day and previous-week
+same-weekday discharge counts. The first candidate model is
+`HistGradientBoostingRegressor`; model metrics are published only after a
+training run has been completed.
 
 Before using real NHS or operational data, record dataset provenance, licensing, schema, and retrieval date in `data/README.md`. Keep raw data out of source control.
 

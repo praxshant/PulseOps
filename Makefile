@@ -1,4 +1,4 @@
-.PHONY: install test lint run-api train evaluate drift
+.PHONY: install test lint run-api validate-data build-features train-model
 
 install:
 	python -m pip install -e ".[dev]"
@@ -10,13 +10,13 @@ lint:
 	python -m ruff check .
 
 run-api:
-	python -m uvicorn pulseops.api.main:app --reload
+	python -m uvicorn api.main:app --reload
 
-train:
-	python scripts/train.py data/processed/sample.csv
+validate-data:
+	python -m data.validate
 
-evaluate:
-	python scripts/evaluate.py data/processed/sample.csv artifacts/models/baseline.joblib
+build-features:
+	python -m features.build
 
-drift:
-	python scripts/detect_drift.py data/processed/reference.csv data/processed/current.csv
+train-model:
+	python -m models.train
