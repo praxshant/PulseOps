@@ -1,4 +1,4 @@
-.PHONY: install test lint run-api validate-data build-features train-model
+.PHONY: install test lint run-api validate-data build-features train-model benchmark-models
 
 install:
 	python -m pip install -e ".[dev]"
@@ -20,3 +20,6 @@ build-features:
 
 train-model:
 	python -m models.train
+
+benchmark-models:
+	python -m models.benchmark

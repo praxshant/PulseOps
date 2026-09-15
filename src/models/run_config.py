@@ -10,7 +10,7 @@ class RunConfig:
     """Stable configuration recorded with every training run."""
 
     experiment_name: str = "pulseops-discharge-forecast"
-    model_type: str = "hist_gradient_boosting"
+    model_type: str = "extra_trees"
     feature_set: str = "all_context"
     random_seed: int = 42
 

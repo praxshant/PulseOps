@@ -61,27 +61,27 @@ the ignored `artifacts/runs/` directory.
 The current temporal evaluation uses April-June for training, July for
 validation, and August for test. Baselines are previous-day and previous-week
 same-weekday discharge counts. The default candidate is
-`HistGradientBoostingRegressor` with the `all_context` feature set; model
-metrics are published only after a training run has been completed.
+`ExtraTreesRegressor` with the `all_context` feature set; model metrics are
+published only after a training run has been completed.
 
 ## First training result
 
-Run `787ef6b06ce645c0b35d0515315a9a47` trained `HistGradientBoostingRegressor`
+Run `654a6852cada467bb3c7fa56e65b4512` trained `ExtraTreesRegressor`
 with the `all_context` feature set and random seed `42`.
 
 | Split | Model | MAE | RMSE | WAPE | Rows |
 |---|---|---:|---:|---:|---:|
-| Validation | Candidate | 10.28 | 14.57 | 12.81% | 3,627 |
+| Validation | Candidate | 9.77 | 14.12 | 12.16% | 3,627 |
 | Validation | Previous day | 20.68 | 29.09 | 25.75% | 3,627 |
 | Validation | Previous weekday | 22.16 | 30.71 | 27.65% | 2,808 |
-| Test | Candidate | 10.59 | 15.48 | 13.83% | 3,510 |
+| Test | Candidate | 10.30 | 15.62 | 13.44% | 3,510 |
 | Test | Previous day | 20.58 | 29.15 | 26.87% | 3,510 |
 | Test | Previous weekday | 21.43 | 30.98 | 28.09% | 2,691 |
 
 The candidate beats both naive baselines on the held-out test split. Compared
-with the earlier lag-and-rolling-only candidate, adding controlled A&E and
-bed-context features improves test MAE by 1.03%, RMSE by 1.89%, and WAPE by
-1.03%. This is a
+with the earlier lag-and-rolling-only candidate, changing the algorithm to
+ExtraTrees and retaining controlled A&E and bed-context features improves test
+MAE by 3.76%, RMSE by 1.03%, and WAPE by 2.76%. This is a
 baseline engineering result, not a claim of annual seasonality or production
 readiness. The run used dataset SHA-256
 `9eed502b65038be2eda91527714fa6d39191b6f859c285e9c8058b9ca1acaa00`, schema
@@ -103,15 +103,26 @@ seven/fourteen/twenty-eight-day history, and shifted rolling windows summarize
 recent capacity flow without using the prediction day's value. The model is
 not being credited for synthetic daily A&E values or forward-filled bed data.
 
-The experiment matrix showed that `calendar_lags_rolling` reached test MAE
-10.70, while `all_context` reached 10.59. Ridge was materially weaker, with
-test MAE 16.75 using lag-and-rolling features. A bounded learning-rate check
-selected 0.08 on July validation but produced a worse August test score
-(10.62), so the existing 0.05 setting was retained instead of tuning against
-the test month. This is the score-improvement solution: add context only after
-measuring it, select on validation, and keep August untouched for final
-reporting. MLflow is the next step for storing this experiment matrix with the
-same dataset hash, feature schema, split, and environment.
+The algorithm bake-off used the same `all_context` features and temporal split
+for every candidate:
+
+| Algorithm | Validation MAE | Test MAE | Test RMSE | Test WAPE |
+|---|---:|---:|---:|---:|
+| ExtraTrees | 9.77 | 10.30 | 15.62 | 13.44% |
+| RandomForest | 9.98 | 10.50 | 15.90 | 13.71% |
+| HistGradientBoosting | 10.28 | 10.59 | 15.48 | 13.83% |
+| Ridge | 16.68 | 17.02 | 23.80 | 22.21% |
+
+ExtraTrees is the validation-selected champion and improves test MAE by 2.76%
+over the previous HistGradientBoosting champion. Its RMSE is slightly higher,
+so the model choice is not being justified by one metric alone; the current
+selection favors lower MAE/WAPE for daily operational workload forecasting.
+A bounded learning-rate check for HistGradientBoosting selected 0.08 on July
+validation but produced a worse August test score (10.62), so that tuning result
+was rejected. The solution is controlled algorithm comparison, validation-only
+selection, and a single held-out August report rather than endless tuning.
+MLflow is the next step for storing this experiment matrix with the same
+dataset hash, feature schema, split, and environment.
 
 ## Structured training lineage
 
@@ -121,7 +132,7 @@ and validation, split creation, feature selection, model initialization,
 training start/completion, validation/test evaluation, artifact saving, and run
 completion. Every event has the same run ID and an ISO-8601 UTC timestamp.
 
-The latest experiment lineage run is `787ef6b06ce645c0b35d0515315a9a47`. Its
+The latest experiment lineage run is `654a6852cada467bb3c7fa56e65b4512`. Its
 test evaluation completed in the event stream with the metrics above. Local
 run artifacts remain ignored by Git.
 

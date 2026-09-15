@@ -15,7 +15,11 @@ import joblib
 import numpy as np
 import pandas as pd
 import sklearn
-from sklearn.ensemble import HistGradientBoostingRegressor
+from sklearn.ensemble import (
+    ExtraTreesRegressor,
+    HistGradientBoostingRegressor,
+    RandomForestRegressor,
+)
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import Ridge
 from sklearn.pipeline import Pipeline
@@ -81,6 +85,22 @@ def _model(model_type: str, seed: int) -> object:
         return HistGradientBoostingRegressor(
             max_iter=250, learning_rate=0.05, max_leaf_nodes=31,
             l2_regularization=1.0, random_state=seed,
+        )
+    if model_type == "extra_trees":
+        return ExtraTreesRegressor(
+            n_estimators=300,
+            min_samples_leaf=2,
+            max_features=1.0,
+            random_state=seed,
+            n_jobs=-1,
+        )
+    if model_type == "random_forest":
+        return RandomForestRegressor(
+            n_estimators=300,
+            min_samples_leaf=2,
+            max_features=0.8,
+            random_state=seed,
+            n_jobs=-1,
         )
     raise ValueError(f"Unsupported model_type: {model_type}")
 
@@ -195,8 +215,8 @@ def main() -> int:
     )
     parser.add_argument(
         "--model-type",
-        choices=["ridge", "hist_gradient_boosting"],
-        default="hist_gradient_boosting",
+        choices=["ridge", "hist_gradient_boosting", "extra_trees", "random_forest"],
+        default="extra_trees",
     )
     parser.add_argument(
         "--feature-set",
