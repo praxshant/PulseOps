@@ -2,12 +2,13 @@
 
 import json
 from pathlib import Path
+
 from pydantic import BaseModel
 
-from models.registry import get_champion_validation_mae, get_production_champion
-from models.train import run_training
-from models.run_config import RunConfig
 from models.quality_gate import is_improvement
+from models.registry import get_champion_validation_mae, get_production_champion
+from models.run_config import RunConfig
+from models.train import run_training
 
 
 class RetrainResult(BaseModel):
@@ -89,10 +90,16 @@ def retrain(
             run_config=RunConfig(model_type=model_type, feature_set=feature_set),
             register_model=True,
         )
-        reason = f"Candidate (MAE {candidate_mae:.3f}) beat champion (MAE {champ_mae:.3f}). Replaced."
+        reason = (
+            f"Candidate (MAE {candidate_mae:.3f}) beat champion "
+            f"(MAE {champ_mae:.3f}). Replaced."
+        )
         replaced = True
     else:
-        reason = f"Candidate (MAE {candidate_mae:.3f}) did not beat champion (MAE {champ_mae:.3f}) by >= 1%."
+        reason = (
+            f"Candidate (MAE {candidate_mae:.3f}) did not beat "
+            f"champion (MAE {champ_mae:.3f}) by >= 1%."
+        )
         replaced = False
         
     result = RetrainResult(

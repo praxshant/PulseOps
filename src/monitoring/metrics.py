@@ -1,6 +1,6 @@
 """Prometheus metrics exposed by the service."""
 
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Gauge, Histogram
 
 PREDICTION_COUNT = Counter(
     "pulseops_predictions_total",

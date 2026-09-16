@@ -1,6 +1,7 @@
 import pandas as pd
 import pytest
-from monitoring.drift import population_stability_index, detect_drift, mean_shift, DriftStatus
+
+from monitoring.drift import DriftStatus, detect_drift, mean_shift, population_stability_index
 
 
 def test_psi_identical_distributions() -> None:

@@ -1,8 +1,9 @@
 """Advanced ML monitoring with drift detection and performance tracking."""
 
+from enum import Enum
+
 import numpy as np
 import pandas as pd
-from enum import Enum
 from pydantic import BaseModel
 
 
@@ -55,7 +56,11 @@ def population_stability_index(
     return float(psi)
 
 
-def detect_drift(psi_value: float, warning_threshold: float = 0.1, alert_threshold: float = 0.2) -> DriftStatus:
+def detect_drift(
+    psi_value: float,
+    warning_threshold: float = 0.1,
+    alert_threshold: float = 0.2
+) -> DriftStatus:
     if psi_value >= alert_threshold:
         return DriftStatus.ALERT
     elif psi_value >= warning_threshold:

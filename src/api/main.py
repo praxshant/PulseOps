@@ -14,12 +14,16 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel, Field
 
 from api.inference_log import log_inference_event
+from monitoring.data_quality import (
+    check_data_staleness,
+    check_feature_completeness,
+    check_feature_ranges,
+)
 from monitoring.metrics import (
+    DATA_QUALITY_FAILURES,
     PREDICTION_COUNT,
     PREDICTION_LATENCY,
-    DATA_QUALITY_FAILURES,
 )
-from monitoring.data_quality import check_feature_completeness, check_feature_ranges, check_data_staleness
 
 app = FastAPI(title="PulseOps API", version="0.3.0")
 
@@ -130,8 +134,8 @@ def drift() -> dict[str, Any]:
 @app.get("/performance")
 def performance() -> dict[str, Any]:
     """Compute and return rolling MAE/WAPE from inference log."""
-    from monitoring.performance import compute_performance_report
     from monitoring.metrics import ROLLING_MAE, ROLLING_WAPE
+    from monitoring.performance import compute_performance_report
     
     report = compute_performance_report(_INFERENCE_LOG_DIR / "inference.jsonl", _ACTUALS_PATH)
     if report.mae is not None:

@@ -1,7 +1,8 @@
 from pathlib import Path
 from unittest.mock import patch
-from models.registry import get_production_champion
+
 from models.quality_gate import is_improvement
+from models.registry import get_production_champion
 from models.retrain import retrain
 
 
@@ -35,7 +36,9 @@ def test_retrain_does_not_replace_when_gate_fails(mock_get_mae, mock_get_champ, 
 @patch("models.retrain.run_training")
 @patch("models.retrain.get_production_champion")
 @patch("models.retrain.get_champion_validation_mae")
-def test_retrain_does_not_replace_when_no_improvement(mock_get_mae, mock_get_champ, mock_run) -> None:  # noqa: ANN001
+def test_retrain_does_not_replace_when_no_improvement(
+    mock_get_mae, mock_get_champ, mock_run
+) -> None:  # noqa: ANN001
     mock_run.return_value = {
         "run_id": "passed123",
         "quality_gate": {"passed": True},

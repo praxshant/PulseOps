@@ -2,8 +2,9 @@
 
 import json
 from pathlib import Path
-from pydantic import BaseModel
+
 import pandas as pd
+from pydantic import BaseModel
 
 
 class PerformanceReport(BaseModel):
@@ -22,7 +23,13 @@ def compute_performance_report(
     """Compute rolling MAE, RMSE, and WAPE by joining predictions to actuals."""
     if not inference_log_path.exists() or not actuals_path.exists():
         return PerformanceReport(
-            window_start="", window_end="", mae=None, rmse=None, wape=None, n_predictions=0, n_actuals_matched=0
+            window_start="",
+            window_end="",
+            mae=None,
+            rmse=None,
+            wape=None,
+            n_predictions=0,
+            n_actuals_matched=0
         )
 
     # Read inference log
@@ -34,7 +41,13 @@ def compute_performance_report(
     
     if not records:
         return PerformanceReport(
-            window_start="", window_end="", mae=None, rmse=None, wape=None, n_predictions=0, n_actuals_matched=0
+            window_start="",
+            window_end="",
+            mae=None,
+            rmse=None,
+            wape=None,
+            n_predictions=0,
+            n_actuals_matched=0
         )
 
     preds = pd.DataFrame(records)
@@ -92,7 +105,11 @@ def compute_performance_report(
     mae = float((merged["prediction"] - merged[actual_col]).abs().mean())
     rmse = float(((merged["prediction"] - merged[actual_col]) ** 2).mean() ** 0.5)
     sum_actual = float(merged[actual_col].sum())
-    wape = float((merged["prediction"] - merged[actual_col]).abs().sum() / sum_actual) if sum_actual > 0 else 0.0
+    
+    if sum_actual > 0:
+        wape = float((merged["prediction"] - merged[actual_col]).abs().sum() / sum_actual)
+    else:
+        wape = 0.0
     
     return PerformanceReport(
         window_start=str(start_date.date()),

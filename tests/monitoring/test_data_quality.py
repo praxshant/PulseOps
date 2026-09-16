@@ -1,4 +1,8 @@
-from monitoring.data_quality import check_feature_completeness, check_feature_ranges, check_data_staleness
+from monitoring.data_quality import (
+    check_data_staleness,
+    check_feature_completeness,
+    check_feature_ranges,
+)
 
 
 def test_feature_completeness() -> None:
