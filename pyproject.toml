@@ -15,6 +15,7 @@ dependencies = [
   "pandas>=2.2",
   "prometheus-client>=0.21",
   "pydantic-settings>=2.6",
+  "pyarrow>=13.0",
   "scikit-learn>=1.5",
   "uvicorn[standard]>=0.32",
 ]
