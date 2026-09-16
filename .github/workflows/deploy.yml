@@ -1,0 +1,21 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker Compose Up
+        run: docker compose -f deployment/docker-compose.yml up -d --build
+      - name: Wait for API
+        run: sleep 10
+      - name: Healthcheck
+        run: |
+          curl -f http://localhost:8000/health
+          curl -f http://localhost:8000/metrics
+      - name: Teardown
+        if: always()
+        run: docker compose -f deployment/docker-compose.yml down
