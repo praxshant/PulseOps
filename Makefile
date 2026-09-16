@@ -1,4 +1,4 @@
-.PHONY: install test lint run-api validate-data build-features train-model benchmark-models
+.PHONY: install test lint run-api validate-data build-features train-model benchmark-models up down retrain drift
 
 install:
 	python -m pip install -e ".[dev]"
@@ -23,3 +23,15 @@ train-model:
 
 benchmark-models:
 	python -m models.benchmark
+
+up:
+	docker compose -f deployment/docker-compose.yml up -d
+
+down:
+	docker compose -f deployment/docker-compose.yml down
+
+retrain:
+	python -m scripts.retrain
+
+drift:
+	python -m monitoring.drift

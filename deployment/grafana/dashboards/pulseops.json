@@ -1,0 +1,43 @@
+{
+  "title": "PulseOps Production",
+  "uid": "pulseops-prod",
+  "panels": [
+    {
+      "title": "Request Rate (per min)",
+      "type": "timeseries",
+      "targets": [{"expr": "rate(pulseops_predictions_total[1m]) * 60"}],
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0}
+    },
+    {
+      "title": "P95 Latency (s)",
+      "type": "timeseries",
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(pulseops_prediction_latency_seconds_bucket[5m])) by (le))"}],
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0}
+    },
+    {
+      "title": "Rolling MAE",
+      "type": "gauge",
+      "targets": [{"expr": "pulseops_rolling_mae"}],
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0}
+    },
+    {
+      "title": "Rolling WAPE",
+      "type": "gauge",
+      "targets": [{"expr": "pulseops_rolling_wape"}],
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8}
+    },
+    {
+      "title": "Drift Status (0=OK, 1=WARN, 2=ALERT)",
+      "type": "gauge",
+      "targets": [{"expr": "pulseops_drift_status"}],
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8}
+    },
+    {
+      "title": "Data Quality Failures",
+      "type": "timeseries",
+      "targets": [{"expr": "increase(pulseops_data_quality_failures_total[1h])"}],
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8}
+    }
+  ],
+  "schemaVersion": 36
+}
