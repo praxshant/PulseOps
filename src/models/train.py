@@ -114,6 +114,7 @@ def run_training(
     run_config: RunConfig | None = None,
     split_config: TemporalSplitConfig | None = None,
     artifact_root: Path = Path("artifacts/runs"),
+    register_model: bool = False,
 ) -> dict[str, Any]:
     """Train a candidate model and record complete local lineage metadata."""
     import dataclasses
@@ -260,7 +261,7 @@ def run_training(
             
             mlflow.log_artifacts(str(run_dir))
             
-            if gate_passed:
+            if gate_passed and register_model:
                 import mlflow.sklearn
                 mlflow.sklearn.log_model(
                     sk_model=model,

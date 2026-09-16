@@ -23,6 +23,7 @@ def run_benchmark(
         result = run_training(
             dataset_path,
             run_config=RunConfig(model_type=model_type, feature_set=FEATURE_SET),
+            register_model=False,
         )
         results.append(
             {
