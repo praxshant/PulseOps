@@ -10,31 +10,25 @@ import joblib
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import Response
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel, Field
 
 from api.inference_log import log_inference_event
-
-app = FastAPI(title="PulseOps API", version="0.2.0")
-
-# --------------------------------------------------------------------------- #
-# Prometheus instruments                                                        #
-# --------------------------------------------------------------------------- #
-PREDICTION_COUNTER = Counter(
-    "pulseops_predictions_total",
-    "Total number of predictions served",
-    ["status"],
+from monitoring.metrics import (
+    PREDICTION_COUNT,
+    PREDICTION_LATENCY,
+    DATA_QUALITY_FAILURES,
 )
-PREDICTION_LATENCY = Histogram(
-    "pulseops_prediction_latency_ms",
-    "Prediction latency in milliseconds",
-)
+from monitoring.data_quality import check_feature_completeness, check_feature_ranges, check_data_staleness
+
+app = FastAPI(title="PulseOps API", version="0.3.0")
 
 # --------------------------------------------------------------------------- #
 # Model state                                                                   #
 # --------------------------------------------------------------------------- #
 _MODEL_CACHE: dict[str, Any] = {}
 _INFERENCE_LOG_DIR = Path("artifacts/inference")
+_ACTUALS_PATH = Path("data/processed/forecasting_dataset.parquet")
 
 
 def _load_model() -> tuple[Any, str, str]:
@@ -126,31 +120,60 @@ def metrics() -> Response:
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
+@app.get("/drift")
+def drift() -> dict[str, Any]:
+    """Return latest drift report (mocked implementation for API)."""
+    # In a full implementation, this would read from artifacts/monitoring/drift_report.json
+    return {"status": "not_implemented_in_api"}
+
+
+@app.get("/performance")
+def performance() -> dict[str, Any]:
+    """Compute and return rolling MAE/WAPE from inference log."""
+    from monitoring.performance import compute_performance_report
+    from monitoring.metrics import ROLLING_MAE, ROLLING_WAPE
+    
+    report = compute_performance_report(_INFERENCE_LOG_DIR / "inference.jsonl", _ACTUALS_PATH)
+    if report.mae is not None:
+        ROLLING_MAE.set(report.mae)
+    if report.wape is not None:
+        ROLLING_WAPE.set(report.wape)
+        
+    return report.model_dump()
+
+
 @app.post("/predict", response_model=PredictionResponse)
 def predict(request: PredictionRequest) -> PredictionResponse:
     """Load the production model and return a real prediction."""
     t0 = time.perf_counter()
 
-    missing = [f for f in REQUIRED_FEATURES if f not in request.features]
-    if missing:
-        PREDICTION_COUNTER.labels(status="error").inc()
+    # 1. Data Quality Checks
+    missing = check_feature_completeness(request.features, REQUIRED_FEATURES)
+    range_errors = check_feature_ranges(request.features)
+    
+    if missing or range_errors:
+        DATA_QUALITY_FAILURES.inc()
+        PREDICTION_COUNT.labels(status="error").inc()
         raise HTTPException(
             status_code=422,
-            detail=f"Missing required features: {missing}",
+            detail={"missing": missing, "range_errors": range_errors},
         )
+        
+    is_stale = check_data_staleness(request.forecast_date)
 
     try:
         model, version, run_id = _load_model()
     except RuntimeError as exc:
-        PREDICTION_COUNTER.labels(status="error").inc()
+        PREDICTION_COUNT.labels(status="error").inc()
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     feature_row = pd.DataFrame([{f: request.features[f] for f in REQUIRED_FEATURES}])
     prediction_value = float(model.predict(feature_row)[0])
     latency_ms = (time.perf_counter() - t0) * 1000
 
-    PREDICTION_LATENCY.observe(latency_ms)
-    PREDICTION_COUNTER.labels(status="ok").inc()
+    # Prometheus update (latency takes seconds, we have ms)
+    PREDICTION_LATENCY.observe(latency_ms / 1000.0)
+    PREDICTION_COUNT.labels(status="ok").inc()
 
     record = log_inference_event(
         log_dir=_INFERENCE_LOG_DIR,
@@ -160,6 +183,7 @@ def predict(request: PredictionRequest) -> PredictionResponse:
         model_version=version,
         run_id=run_id,
         latency_ms=latency_ms,
+        stale_data=is_stale,
     )
 
     return PredictionResponse(
