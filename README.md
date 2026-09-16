@@ -66,6 +66,32 @@ published only after a training run has been completed.
 
 ## Current Champion Benchmark
 
+The models are automatically evaluated on validation MAE to determine the champion. 
+
+Current architecture includes full container stack (API, Prometheus, Grafana, MLflow) with drift and performance monitoring, plus automated retraining.
+
+## Local Deployment
+
+Bring up the full stack:
+```bash
+make up
+```
+
+Endpoints available:
+- **API**: http://localhost:8000/docs
+- **Grafana**: http://localhost:3000 (auto-provisioned dashboards)
+- **MLflow**: http://localhost:5000
+- **Prometheus**: http://localhost:9090
+
+Bring down:
+```bash
+make down
+```
+
+## Next Step: Phase 3 (End-to-End Run)
+
+Now that the architecture is frozen, we will run one complete end-to-end dry run to populate MLflow, Prometheus, and Grafana with actual predictions and metrics.
+
 Run `654a6852cada467bb3c7fa56e65b4512` trained `ExtraTreesRegressor`
 with the `all_context` feature set and random seed `42`.
 
