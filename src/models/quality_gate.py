@@ -48,4 +48,4 @@ def is_improvement(candidate_mae: float, champion_mae: float, threshold: float =
     if champion_mae <= 0:
         return False
     improvement_pct = (champion_mae - candidate_mae) / champion_mae
-    return improvement_pct >= threshold
+    return round(improvement_pct, 6) >= threshold
