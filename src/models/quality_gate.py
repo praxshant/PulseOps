@@ -41,3 +41,11 @@ def passes_quality_gate(
         return False, f"Candidate WAPE ({candidate_wape:.2%}) exceeds threshold ({max_wape:.2%})."
         
     return True, "Passed all quality checks."
+
+
+def is_improvement(candidate_mae: float, champion_mae: float, threshold: float = 0.01) -> bool:
+    """Return True if candidate improves upon champion by at least the threshold percentage."""
+    if champion_mae <= 0:
+        return False
+    improvement_pct = (champion_mae - candidate_mae) / champion_mae
+    return improvement_pct >= threshold
