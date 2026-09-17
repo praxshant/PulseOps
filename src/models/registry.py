@@ -6,17 +6,28 @@ from pathlib import Path
 
 
 def get_production_champion(artifact_root: Path = Path("artifacts/runs")) -> dict | None:
-    """Read the latest run.json that successfully passed the quality gate."""
-    run_jsons = sorted(glob.glob(str(artifact_root / "*/run.json")), reverse=True)
+    """Read the latest chronologically registered run.json."""
+    if not artifact_root.exists():
+        return None
 
-    for run_json_path in run_jsons:
+    runs = []
+    for run_dir in artifact_root.iterdir():
+        if not run_dir.is_dir():
+            continue
+            
+        run_file = run_dir / "run.json"
+        if not run_file.exists():
+            continue
+            
         try:
-            meta = json.loads(Path(run_json_path).read_text(encoding="utf-8"))
-            if meta.get("quality_gate", {}).get("passed") is True:
-                return meta
+            meta = json.loads(run_file.read_text(encoding="utf-8"))
+            if meta.get("is_registered") is True:
+                runs.append(meta)
         except Exception:
             continue
-    return None
+
+    runs.sort(key=lambda run: run.get("run_started_at", ""), reverse=True)
+    return runs[0] if runs else None
 
 
 def get_champion_validation_mae(artifact_root: Path = Path("artifacts/runs")) -> float | None:

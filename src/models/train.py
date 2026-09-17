@@ -219,6 +219,7 @@ def run_training(
             "rows_seen": len(train),
             "metrics": metrics,
             "quality_gate": {"passed": gate_passed, "reason": gate_reason},
+            "is_registered": register_model,
             "model_artifact": str(model_path),
             "events_artifact": str(tracker.events_path),
         }
@@ -267,6 +268,7 @@ def run_training(
                     sk_model=model,
                     artifact_path="model",
                     registered_model_name=settings.model_name,
+                    serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_CLOUDPICKLE,
                 )
 
         tracker.finish(duration_seconds=result["duration_seconds"], metrics=metrics)
