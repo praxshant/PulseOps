@@ -1,6 +1,5 @@
 """Helper methods for interacting with the local model registry via artifacts."""
 
-import glob
 import json
 from pathlib import Path
 

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import glob
+import json
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -19,8 +22,10 @@ from monitoring.data_quality import (
     check_feature_completeness,
     check_feature_ranges,
 )
+from monitoring.drift import DriftReport, DriftStatus, detect_drift, population_stability_index
 from monitoring.metrics import (
     DATA_QUALITY_FAILURES,
+    DRIFT_STATUS,
     PREDICTION_COUNT,
     PREDICTION_LATENCY,
 )
@@ -50,7 +55,8 @@ def _load_model() -> tuple[Any, str, str]:
         meta = json.loads(Path(run_json_path).read_text(encoding="utf-8"))
         gate = meta.get("quality_gate", {})
         if gate.get("passed") is True:
-            model_path = Path(meta["model_artifact"])
+            # Fix windows slashes when running in Linux docker container
+            model_path = Path(meta["model_artifact"].replace("\\", "/"))
             if model_path.exists():
                 model = joblib.load(model_path)
                 run_id = meta["run_id"]
@@ -126,9 +132,89 @@ def metrics() -> Response:
 
 @app.get("/drift")
 def drift() -> dict[str, Any]:
-    """Return latest drift report (mocked implementation for API)."""
-    # In a full implementation, this would read from artifacts/monitoring/drift_report.json
-    return {"status": "not_implemented_in_api"}
+    """Compute PSI-based feature drift: training reference vs recent inference inputs."""
+    runs_root = Path("artifacts/runs")
+    run_jsons = sorted(glob.glob(str(runs_root / "*/run.json")), reverse=True)
+
+    # Find the latest quality-gate-passing run
+    best_run: dict[str, Any] | None = None
+    for rj in run_jsons:
+        meta = json.loads(Path(rj).read_text(encoding="utf-8"))
+        if meta.get("quality_gate", {}).get("passed") is True:
+            best_run = meta
+            break
+
+    if best_run is None:
+        return {"status": "no_model", "reports": []}
+
+    # Load training reference data
+    dataset_path = Path(best_run["dataset"]["dataset_path"].replace("\\", "/"))
+    if not dataset_path.exists():
+        return {"status": "reference_data_unavailable", "reports": []}
+
+    reference_df = pd.read_parquet(dataset_path)
+    feature_cols = best_run["features"]
+
+    # Load recent inference feature values from log
+    inference_log = _INFERENCE_LOG_DIR / "inference.jsonl"
+    current_rows: list[dict[str, float]] = []
+    if inference_log.exists():
+        with inference_log.open("r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    rec = json.loads(line)
+                    if "features" in rec and isinstance(rec["features"], dict):
+                        current_rows.append(rec["features"])
+
+    if not current_rows:
+        return {
+            "status": "no_inference_data",
+            "message": (
+                "No inference records with feature values yet. Make some /predict calls first."
+            ),
+            "reports": [],
+        }
+
+    current_df = pd.DataFrame(current_rows)
+
+    # Compute PSI for each feature
+    reports: list[dict[str, Any]] = []
+    overall_status = DriftStatus.STABLE
+    now_ts = datetime.now(timezone.utc).isoformat()
+
+    for feat in feature_cols:
+        if feat not in reference_df.columns or feat not in current_df.columns:
+            continue
+        ref_series = reference_df[feat].dropna()
+        cur_series = current_df[feat].dropna()
+        if ref_series.empty or cur_series.empty:
+            continue
+        psi = population_stability_index(ref_series, cur_series)
+        shift = float(abs(ref_series.mean() - cur_series.mean()))
+        status = detect_drift(psi)
+        if status == DriftStatus.ALERT:
+            overall_status = DriftStatus.ALERT
+        elif status == DriftStatus.WARNING and overall_status == DriftStatus.STABLE:
+            overall_status = DriftStatus.WARNING
+        reports.append(DriftReport(
+            timestamp=now_ts,
+            feature=feat,
+            psi=round(psi, 6),
+            mean_shift=round(shift, 4),
+            status=status,
+        ).model_dump())
+
+    # Update Prometheus drift gauge
+    drift_map = {DriftStatus.STABLE: 0, DriftStatus.WARNING: 1, DriftStatus.ALERT: 2}
+    DRIFT_STATUS.set(drift_map[overall_status])
+
+    return {
+        "status": overall_status,
+        "run_id": best_run["run_id"],
+        "n_inference_samples": len(current_rows),
+        "n_reference_samples": len(reference_df),
+        "reports": reports,
+    }
 
 
 @app.get("/performance")
@@ -187,6 +273,7 @@ def predict(request: PredictionRequest) -> PredictionResponse:
         model_version=version,
         run_id=run_id,
         latency_ms=latency_ms,
+        features=request.features,
         stale_data=is_stale,
     )
 
